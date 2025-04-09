@@ -1,4 +1,4 @@
-# GlobalWebIndex - Jedi Team - Engineering Challenge
+# GWI - Jedi Team - Engineering Challenge
 
 Welcome to the engineering challenge for the Jedi Team at GWI!
 
