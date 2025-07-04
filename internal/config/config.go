@@ -13,6 +13,7 @@ type Config struct {
 	DatabaseURL  string
 	HTTPPort     string
 	LogLevel     string
+	JWTSecret    string
 }
 
 var AppConfig Config
@@ -28,10 +29,15 @@ func LoadConfig() {
 		DatabaseURL:  getEnv("DATABASE_URL", "gwi_chatbot.db"),
 		HTTPPort:     getEnv("HTTP_PORT", "8080"),
 		LogLevel:     getEnv("LOG_LEVEL", "INFO"),
+		JWTSecret:    getEnv("JWT_SECRET", ""),
 	}
 
 	if AppConfig.GeminiAPIKey == "" {
 		log.Fatal("GEMINI_API_KEY environment variable is required")
+	}
+	
+	if AppConfig.JWTSecret == "" {
+		log.Fatal("JWT_SECRET environment variable is required")
 	}
 }
 

@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"gwi.com/jedi-team-challenge/internal/auth"
 	"gwi.com/jedi-team-challenge/internal/core"
 	"gwi.com/jedi-team-challenge/internal/store"
 )
@@ -19,25 +21,58 @@ func NewAPIHandler(cs *core.ChatService) *APIHandler {
 	return &APIHandler{chatService: cs}
 }
 
-// Middleware to extract and validate X-User-ID
-func (h *APIHandler) UserAuthMiddleware(next http.Handler) http.Handler {
+func (h *APIHandler) JWTAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		externalUserID := r.Header.Get("X-User-ID")
-		if externalUserID == "" {
-			http.Error(w, "X-User-ID header is required", http.StatusUnauthorized)
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(w, "Authorization header is required", http.StatusUnauthorized)
 			return
 		}
-		// Get or create user, attach internal user ID to context
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		externalUserID, err := auth.ValidateJWT(tokenString)
+		if err != nil {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+
 		user, err := h.chatService.GetOrCreateUser(externalUserID)
 		if err != nil {
-			log.Printf("Error in UserAuthMiddleware for X-User-ID %s: %v", externalUserID, err)
+			log.Printf("Error in JWTAuthMiddleware for user %s: %v", externalUserID, err)
 			http.Error(w, "Failed to process user identity", http.StatusInternalServerError)
 			return
 		}
+
 		ctx := context.WithValue(r.Context(), "userID", user.ID)
 		ctx = context.WithValue(ctx, "externalUserID", user.ExternalUserID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+type LoginRequest struct {
+	UserID string `json:"user_id"`
+}
+
+func (h *APIHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	var req LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.UserID == "" {
+		http.Error(w, "User ID is required", http.StatusBadRequest)
+		return
+	}
+
+	token, err := auth.GenerateJWT(req.UserID)
+	if err != nil {
+		log.Printf("Error generating JWT for user %s: %v", req.UserID, err)
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
 type CreateChatRequest struct {
