@@ -22,9 +22,12 @@ func NewChatService(db *store.SQLiteStore, rag *RAGService, llm *LLMService) *Ch
 	}
 }
 
-// GetOrCreateUser ensures a user exists and returns their internal ID.
-func (s *ChatService) GetOrCreateUser(externalUserID string) (*store.User, error) {
-	return s.dbStore.GetOrCreateUser(externalUserID)
+func (s *ChatService) GetUserByExternalID(externalUserID string) (*store.User, error) {
+	return s.dbStore.GetUserByExternalID(externalUserID)
+}
+
+func (s *ChatService) CreateUser(externalUserID, passwordHash string) (*store.User, error) {
+	return s.dbStore.CreateUser(externalUserID, passwordHash)
 }
 
 func (s *ChatService) CreateChat(userID int64, firstMessageContent *string) (*store.Chat, []store.Message, error) {

@@ -35,7 +35,7 @@ func LoadConfig() {
 	if AppConfig.GeminiAPIKey == "" {
 		log.Fatal("GEMINI_API_KEY environment variable is required")
 	}
-	
+
 	if AppConfig.JWTSecret == "" {
 		log.Fatal("JWT_SECRET environment variable is required")
 	}

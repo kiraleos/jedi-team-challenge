@@ -17,6 +17,7 @@ func NewRouter(apiHandler *APIHandler) http.Handler {
 	// All API routes will be under /api
 	r.Route("/api", func(r chi.Router) {
 		// Public routes
+		r.Post("/signup", apiHandler.SignupHandler)
 		r.Post("/login", apiHandler.LoginHandler)
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)

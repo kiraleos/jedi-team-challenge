@@ -36,10 +36,15 @@ func (h *APIHandler) JWTAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		user, err := h.chatService.GetOrCreateUser(externalUserID)
+		user, err := h.chatService.GetUserByExternalID(externalUserID)
 		if err != nil {
 			log.Printf("Error in JWTAuthMiddleware for user %s: %v", externalUserID, err)
 			http.Error(w, "Failed to process user identity", http.StatusInternalServerError)
+			return
+		}
+
+		if user == nil {
+			http.Error(w, "User not found", http.StatusUnauthorized)
 			return
 		}
 
@@ -49,8 +54,44 @@ func (h *APIHandler) JWTAuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+type SignupRequest struct {
+	UserID   string `json:"user_id"`
+	Password string `json:"password"`
+}
+
+func (h *APIHandler) SignupHandler(w http.ResponseWriter, r *http.Request) {
+	var req SignupRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.UserID == "" || req.Password == "" {
+		http.Error(w, "User ID and password are required", http.StatusBadRequest)
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(req.Password)
+	if err != nil {
+		log.Printf("Error hashing password for user %s: %v", req.UserID, err)
+		http.Error(w, "Failed to process password", http.StatusInternalServerError)
+		return
+	}
+
+	user, err := h.chatService.CreateUser(req.UserID, hashedPassword)
+	if err != nil {
+		log.Printf("Error creating user %s: %v", req.UserID, err)
+		http.Error(w, "Failed to create user", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(user)
+}
+
 type LoginRequest struct {
-	UserID string `json:"user_id"`
+	UserID   string `json:"user_id"`
+	Password string `json:"password"`
 }
 
 func (h *APIHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -60,8 +101,20 @@ func (h *APIHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.UserID == "" {
-		http.Error(w, "User ID is required", http.StatusBadRequest)
+	if req.UserID == "" || req.Password == "" {
+		http.Error(w, "User ID and password are required", http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.chatService.GetUserByExternalID(req.UserID)
+	if err != nil {
+		log.Printf("Error getting user %s: %v", req.UserID, err)
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	if user == nil || !auth.CheckPasswordHash(req.Password, user.PasswordHash) {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 

@@ -134,8 +134,12 @@ gwi-jedi-team-challenge/
 
 All protected endpoints require an `Authorization` header with a valid JWT (e.g., `Authorization: Bearer <your-jwt>`).
 
+- **`POST /api/signup`**: Create a new user.
+  - Request Body: `{ "user_id": "user123", "password": "your_password" }`
+  - Response: `201 Created` with the new user's details.
+
 - **`POST /api/login`**: Get a JWT for a user.
-  - Request Body: `{ "user_id": "user123" }`
+  - Request Body: `{ "user_id": "user123", "password": "your_password" }`
   - Response: `200 OK` with a JWT.
 
 - **`POST /api/chats`**: Create a new chat.
@@ -202,17 +206,26 @@ All protected endpoints require an `Authorization` header with a valid JWT (e.g.
 
 Assume server running on `localhost:8080`.
 
-1. **Login and get a JWT:**
+1. **Sign up a new user:**
 
     ```bash
     curl -X POST -H "Content-Type: application/json" \
-      -d '{"user_id": "user123"}' \
+      -d '{"user_id": "user123", "password": "securepassword123"}' \
+      http://localhost:8080/api/signup
+    ```
+
+2. **Login and get a JWT:**
+
+    ```bash
+    curl -X POST -H "Content-Type: application/json" \
+      -d '{"user_id": "user123", "password": "securepassword123"}' \
       http://localhost:8080/api/login
     ```
 
     (Copy the token from the response)
 
-2. **Create a new chat with an initial question:**
+3. **Create a new chat with an initial question:**
+
 
     ```bash
     export JWT="<paste-your-jwt-here>"
@@ -241,7 +254,7 @@ Assume server running on `localhost:8080`.
 
 ## Design Choices & Assumptions
 
-- **User Identification:** Users are identified by a user ID string, which is used to generate a JWT. The application auto-creates an internal user record if one doesn't exist.
+- **User Identification:** Users are identified by a user ID string and a password. Passwords are hashed using bcrypt. JWTs are used for session management.
 - **Data Format & Chunking:** `data.md` is expected to be a Markdown table where each row's `text` column represents a single fact or chunk. The ingestion process parses these rows.
 - **Embeddings & LLM:** Google's Gemini models are used (e.g., `text-embedding-004` for embeddings, `gemini-1.5-flash-latest` for generation). Embeddings are stored as JSON strings in SQLite.
 - **Context for LLM:** The Gemini prompt includes:

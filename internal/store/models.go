@@ -5,6 +5,7 @@ import "time"
 type User struct {
 	ID             int64     `json:"id"`
 	ExternalUserID string    `json:"external_user_id"`
+	PasswordHash   string    `json:"-"` // Do not expose this in JSON responses
 	CreatedAt      time.Time `json:"created_at"`
 }
 
