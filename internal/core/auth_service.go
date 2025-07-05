@@ -7,10 +7,10 @@ import (
 )
 
 type AuthService struct {
-	dbStore *store.SQLiteStore
+	dbStore store.Storer
 }
 
-func NewAuthService(db *store.SQLiteStore) *AuthService {
+func NewAuthService(db store.Storer) *AuthService {
 	return &AuthService{dbStore: db}
 }
 
