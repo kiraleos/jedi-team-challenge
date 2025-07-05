@@ -1,132 +1,13 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"gwi.com/jedi-team-challenge/internal/auth"
-	"gwi.com/jedi-team-challenge/internal/core"
 	"gwi.com/jedi-team-challenge/internal/store"
 )
-
-type APIHandler struct {
-	chatService *core.ChatService
-}
-
-func NewAPIHandler(cs *core.ChatService) *APIHandler {
-	return &APIHandler{chatService: cs}
-}
-
-func (h *APIHandler) JWTAuthMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Authorization header is required", http.StatusUnauthorized)
-			return
-		}
-
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		externalUserID, err := auth.ValidateJWT(tokenString)
-		if err != nil {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
-			return
-		}
-
-		user, err := h.chatService.GetUserByExternalID(externalUserID)
-		if err != nil {
-			log.Printf("Error in JWTAuthMiddleware for user %s: %v", externalUserID, err)
-			http.Error(w, "Failed to process user identity", http.StatusInternalServerError)
-			return
-		}
-
-		if user == nil {
-			http.Error(w, "User not found", http.StatusUnauthorized)
-			return
-		}
-
-		ctx := context.WithValue(r.Context(), "userID", user.ID)
-		ctx = context.WithValue(ctx, "externalUserID", user.ExternalUserID)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-type SignupRequest struct {
-	UserID   string `json:"user_id"`
-	Password string `json:"password"`
-}
-
-func (h *APIHandler) SignupHandler(w http.ResponseWriter, r *http.Request) {
-	var req SignupRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if req.UserID == "" || req.Password == "" {
-		http.Error(w, "User ID and password are required", http.StatusBadRequest)
-		return
-	}
-
-	hashedPassword, err := auth.HashPassword(req.Password)
-	if err != nil {
-		log.Printf("Error hashing password for user %s: %v", req.UserID, err)
-		http.Error(w, "Failed to process password", http.StatusInternalServerError)
-		return
-	}
-
-	user, err := h.chatService.CreateUser(req.UserID, hashedPassword)
-	if err != nil {
-		log.Printf("Error creating user %s: %v", req.UserID, err)
-		http.Error(w, "Failed to create user", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
-}
-
-type LoginRequest struct {
-	UserID   string `json:"user_id"`
-	Password string `json:"password"`
-}
-
-func (h *APIHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
-	var req LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if req.UserID == "" || req.Password == "" {
-		http.Error(w, "User ID and password are required", http.StatusBadRequest)
-		return
-	}
-
-	user, err := h.chatService.GetUserByExternalID(req.UserID)
-	if err != nil {
-		log.Printf("Error getting user %s: %v", req.UserID, err)
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
-	}
-
-	if user == nil || !auth.CheckPasswordHash(req.Password, user.PasswordHash) {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
-	}
-
-	token, err := auth.GenerateJWT(req.UserID)
-	if err != nil {
-		log.Printf("Error generating JWT for user %s: %v", req.UserID, err)
-		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
-		return
-	}
-
-	json.NewEncoder(w).Encode(map[string]string{"token": token})
-}
 
 type CreateChatRequest struct {
 	FirstMessage *string `json:"first_message,omitempty"`
