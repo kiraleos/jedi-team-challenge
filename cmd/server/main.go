@@ -64,8 +64,11 @@ func main() {
 	// Initialize Chat service
 	chatService := core.NewChatService(dbStore, ragService, llmService)
 
+	// Initialize Auth service
+	authService := core.NewAuthService(dbStore)
+
 	// Initialize API Handler and Router
-	apiHandler := api.NewAPIHandler(chatService)
+	apiHandler := api.NewAPIHandler(chatService, authService)
 	router := api.NewRouter(apiHandler)
 
 	// Start HTTP server

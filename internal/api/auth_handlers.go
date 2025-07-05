@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"gwi.com/jedi-team-challenge/internal/auth"
+	"gwi.com/jedi-team-challenge/internal/core"
 )
 
 type SignupRequest struct {
@@ -20,21 +20,14 @@ func (h *APIHandler) SignupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.UserID == "" || req.Password == "" {
-		http.Error(w, "User ID and password are required", http.StatusBadRequest)
-		return
+	creds := core.SignupCredentials{
+		UserID:   req.UserID,
+		Password: req.Password,
 	}
 
-	hashedPassword, err := auth.HashPassword(req.Password)
+	user, err := h.authService.Signup(creds)
 	if err != nil {
-		log.Printf("Error hashing password for user %s: %v", req.UserID, err)
-		http.Error(w, "Failed to process password", http.StatusInternalServerError)
-		return
-	}
-
-	user, err := h.chatService.CreateUser(req.UserID, hashedPassword)
-	if err != nil {
-		log.Printf("Error creating user %s: %v", req.UserID, err)
+		log.Printf("Error signing up user %s: %v", req.UserID, err)
 		http.Error(w, "Failed to create user", http.StatusInternalServerError)
 		return
 	}
@@ -55,27 +48,15 @@ func (h *APIHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.UserID == "" || req.Password == "" {
-		http.Error(w, "User ID and password are required", http.StatusBadRequest)
-		return
+	creds := core.LoginCredentials{
+		UserID:   req.UserID,
+		Password: req.Password,
 	}
 
-	user, err := h.chatService.GetUserByExternalID(req.UserID)
+	token, err := h.authService.Login(creds)
 	if err != nil {
-		log.Printf("Error getting user %s: %v", req.UserID, err)
+		log.Printf("Error logging in user %s: %v", req.UserID, err)
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
-	}
-
-	if user == nil || !auth.CheckPasswordHash(req.Password, user.PasswordHash) {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
-	}
-
-	token, err := auth.GenerateJWT(req.UserID)
-	if err != nil {
-		log.Printf("Error generating JWT for user %s: %v", req.UserID, err)
-		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
 

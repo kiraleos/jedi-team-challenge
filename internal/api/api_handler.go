@@ -6,8 +6,12 @@ import (
 
 type APIHandler struct {
 	chatService *core.ChatService
+	authService *core.AuthService
 }
 
-func NewAPIHandler(cs *core.ChatService) *APIHandler {
-	return &APIHandler{chatService: cs}
+func NewAPIHandler(cs *core.ChatService, as *core.AuthService) *APIHandler {
+	return &APIHandler{
+		chatService: cs,
+		authService: as,
+	}
 }
