@@ -9,6 +9,13 @@ import (
 	"gwi.com/jedi-team-challenge/internal/auth"
 )
 
+type contextKey string
+
+const (
+	userIDKey         contextKey = "userID"
+	externalUserIDKey contextKey = "externalUserID"
+)
+
 func (h *APIHandler) JWTAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -36,8 +43,8 @@ func (h *APIHandler) JWTAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "userID", user.ID)
-		ctx = context.WithValue(ctx, "externalUserID", user.ExternalUserID)
+		ctx := context.WithValue(r.Context(), userIDKey, user.ID)
+		ctx = context.WithValue(ctx, externalUserIDKey, user.ExternalUserID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
